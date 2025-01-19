@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "chess-engine"
 version = "0.1.0"
-source = "git+https://github.com/BarkerProoks/chess-engine.git#ab5b6a6c9d9d8841f37c2e95529931cf3bbfa9cd"
+source = "git+https://github.com/BarkerProoks/chess-engine.git#adcc6f625a7c30ffd49ef96937b8f13a21e7d0c3"
 
 [[package]]
 name = "chess-server"

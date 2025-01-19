@@ -1,11 +1,10 @@
-pub use chess_engine;
+use chess_engine;
+
+mod game;
+use game::{ChessServer, ChessClient, ChessPacket};
 
 fn main() {
-
-    let color = chess_engine::ChessPieceColor::White;
-    let board = chess_engine::ChessBoard::new(color);
-
-    let piece = board.tile(&chess_engine::V2 { x: 0, y: 0 }).piece();
-
-    println!("piece at 0, 0: {:?}", piece.unwrap());
+    ChessServer::new("localhost", 8000)
+        .expect("could not create chess server")
+        .serve_forever();
 }
