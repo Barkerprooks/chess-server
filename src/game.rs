@@ -1,9 +1,10 @@
 use std::net::{ TcpListener, TcpStream, SocketAddr, ToSocketAddrs };
-use std::io::Read;
+use std::io::{ Read, Write };
 
 use chess_engine::{ ChessMove, ChessBoard, ChessPieceColor };
 
 const INITIAL_CLIENTS: [Option<ChessClient>; 8] = [ None, None, None, None, None, None, None, None ];
+const ACCEPT_MAX_CLIENTS: &str = "too many clients playing at the moment";
 
 #[derive(Debug)]
 pub struct ChessPacket {
@@ -11,6 +12,7 @@ pub struct ChessPacket {
     turn: u8 // turn number
 }
 
+#[derive(Debug)]
 pub struct ChessClient {
     board: ChessBoard,
     client: TcpStream
@@ -46,34 +48,34 @@ impl ChessClient {
 
 impl ChessServer {
     pub fn new(host: &str, port: u16) -> Result<Self, String> {
-        let service = TcpListener::bind(format!("{}:{}", host, port));
-        match service {
-            Ok(service) => Ok( Self { service, clients: INITIAL_CLIENTS } ),
-            Err(_) => Err(format!("couldn't bind to address {host}:{port}"))
+        match TcpListener::bind(format!("{}:{}", host, port)) {
+            Ok(service) => Ok( Self { clients: INITIAL_CLIENTS, service }),
+            Err(error) => Err(error.to_string())
         }
     }
 
-    pub fn client_connected(&mut self, stream: TcpStream) {
-        let index = self.clients.iter()
-            .enumerate()
-            .find(|(_i, client)| client.is_some())
-            .unwrap_or((0, &None)).0;
-        
-        println!("{}", index);
-    
-        self.clients[index] = Some(ChessClient::new(stream, ChessPieceColor::White));
-    }
-
-    pub fn serve_forever(&mut self) {
-        let mut streams: Vec<TcpStream> = vec![];
+    pub fn serve_forever(&mut self, message: &str) {
+        println!("{message}");
 
         for stream in self.service.incoming() {
             match stream {
-                Ok(stream) => streams.push(stream),
-                Err(error) => println!("error: {error}")
-            }
+                Ok(mut stream) => {
+                    let index = self.clients.iter()
+                        .enumerate()
+                        .find(|(_, client)| !client.is_some())
+                        .unwrap_or((usize::MAX, &None))
+                        .0;
 
-            println!("{:#?}", streams);
+                    if index == usize::MAX {
+                        stream.write(&ACCEPT_MAX_CLIENTS.as_bytes())
+                            .expect("error while writing");
+                        // stream auto closes
+                    } else {
+                        self.clients[index] = Some(ChessClient::new(stream, ChessPieceColor::Black));
+                    }
+                },
+                Err(error) => println!("tcp accept error: {error}")
+            }
         }
     }
 }
