@@ -8,11 +8,10 @@ const PORT: u16 = 8000;
 
 fn main() {
 
-    let message = format!("serving on port {PORT}");
-
     match ChessServer::new(HOST, PORT) {
         Ok(mut server) => {
-            server.serve_forever(message.as_str());
+            println!("serving on port {PORT}");
+            server.serve_chess_games();
         },
         Err(error) => println!("chess server error: {error}")
     }

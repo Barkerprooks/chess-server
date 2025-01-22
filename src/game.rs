@@ -1,21 +1,19 @@
-use std::net::{ TcpListener, TcpStream, SocketAddr, ToSocketAddrs };
+use std::net::{ TcpListener, TcpStream, SocketAddr, ToSocketAddrs, Shutdown };
 use std::io::{ Read, Write };
 
 use chess_engine::{ ChessMove, ChessBoard, ChessPieceColor };
 
-const INITIAL_CLIENTS: [Option<ChessClient>; 8] = [ None, None, None, None, None, None, None, None ];
-const ACCEPT_MAX_CLIENTS: &str = "too many clients playing at the moment";
-
 #[derive(Debug)]
 pub struct ChessPacket {
+    client_id: u8, // id of the client playing
     data: [u8; 2], // move is a u16 but sockets send u8
-    turn: u8 // turn number
+    turn: u8,      // turn number
 }
 
 #[derive(Debug)]
 pub struct ChessClient {
     board: ChessBoard,
-    client: TcpStream
+    client_id: u8,
 }
 
 pub struct ChessServer {
@@ -24,25 +22,33 @@ pub struct ChessServer {
 }
 
 impl ChessPacket {
-    pub fn new(turn: u8, data: ChessMove) -> Self {
-        Self { turn, data: [(data.0 & 0xff) as u8, (data.0 >> 8) as u8] }
+    pub fn new(client_id: u8, data: ChessMove, turn: u8) -> Self {
+        Self { client_id, data: [(data.0 & 0xff) as u8, (data.0 >> 8) as u8], turn }
     }
 
     pub fn from_stream(stream: &mut TcpStream) -> Self {
-        let mut buffer: [u8; 3] = [0; 3];
+        let mut buffer: [u8; 4] = [0; 4];
         
         match stream.read(&mut buffer) {
-            Ok(_) => println!("{:#?}", buffer),
+            Ok(bytes) => println!("{:#?}, {}", buffer, bytes),
             Err(_) => println!("error!")
         };
 
-        return Self { data: buffer[1..3].try_into().unwrap(), turn: buffer[0] }
+        return Self { 
+            client_id: buffer[0],
+            data: buffer[1..3].try_into().unwrap(), 
+            turn: buffer[3]
+        }
+    }
+
+    pub fn into_buffer(self) -> [u8; 4] {
+        [self.client_id, self.data[0], self.data[1], self.turn]
     }
 }
 
 impl ChessClient {
-    pub fn new(client: TcpStream, color: ChessPieceColor) -> Self {
-        Self { client: client, board: ChessBoard::new(color) }
+    pub fn new(client_id: u8, color: ChessPieceColor) -> Self {
+        Self { client_id, board: ChessBoard::new(color) }
     }
 }
 
@@ -54,25 +60,15 @@ impl ChessServer {
         }
     }
 
-    pub fn serve_forever(&mut self, message: &str) {
-        println!("{message}");
-
+    pub fn serve_chess_games(&mut self) {
         for stream in self.service.incoming() {
             match stream {
                 Ok(mut stream) => {
-                    let index = self.clients.iter()
-                        .enumerate()
-                        .find(|(_, client)| !client.is_some())
-                        .unwrap_or((usize::MAX, &None))
-                        .0;
+                    let packet = ChessPacket::from_stream(&mut stream);
+                    println!("{:?}", packet);
 
-                    if index == usize::MAX {
-                        stream.write(&ACCEPT_MAX_CLIENTS.as_bytes())
-                            .expect("error while writing");
-                        // stream auto closes
-                    } else {
-                        self.clients[index] = Some(ChessClient::new(stream, ChessPieceColor::Black));
-                    }
+                    stream.write("fuck".as_bytes());
+                    stream.shutdown(Shutdown::Both);
                 },
                 Err(error) => println!("tcp accept error: {error}")
             }
