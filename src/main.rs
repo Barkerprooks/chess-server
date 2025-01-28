@@ -1,19 +1,10 @@
 use chess_engine;
 
-mod game;
-use game::ChessServer;
-
-const HOST: &str = "127.0.0.1";
-const PORT: u16 = 8000;
+mod http;
+use http::HttpRequest;
 
 fn main() {
 
-    match ChessServer::new(HOST, PORT) {
-        Ok(mut server) => {
-            println!("serving on port {PORT}");
-            server.serve_chess_games();
-        },
-        Err(error) => println!("chess server error: {error}")
-    }
+    HttpRequest::from_string("GET / HTTP/1.1\r\nHost: hello\r\nNice: meme\r\n\r\n");
 
 }

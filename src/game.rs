@@ -1,16 +1,16 @@
-use std::net::{ TcpListener, TcpStream, SocketAddr, ToSocketAddrs, Shutdown };
+use std::net::{ TcpListener, TcpStream, Shutdown };
 use std::io::{ Read, Write };
 
 use chess_engine::{ ChessMove, ChessBoard, ChessPieceColor };
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ChessPacket {
     client_id: u8, // id of the client playing
     data: [u8; 2], // move is a u16 but sockets send u8
     turn: u8,      // turn number
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ChessClient {
     board: ChessBoard,
     client_id: u8,
@@ -55,7 +55,7 @@ impl ChessClient {
 impl ChessServer {
     pub fn new(host: &str, port: u16) -> Result<Self, String> {
         match TcpListener::bind(format!("{}:{}", host, port)) {
-            Ok(service) => Ok( Self { clients: INITIAL_CLIENTS, service }),
+            Ok(service) => Ok( Self { clients: [None; 8], service }),
             Err(error) => Err(error.to_string())
         }
     }
@@ -64,7 +64,7 @@ impl ChessServer {
         for stream in self.service.incoming() {
             match stream {
                 Ok(mut stream) => {
-                    let packet = ChessPacket::from_stream(&mut stream);
+                    let packet: ChessPacket = ChessPacket::from_stream(&mut stream);
                     println!("{:?}", packet);
 
                     stream.write("fuck".as_bytes());
